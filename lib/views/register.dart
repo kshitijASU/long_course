@@ -1,11 +1,9 @@
-import 'dart:developer';
-
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:long_course_project/constants/routes.dart';
-
-import 'firebase_options.dart';
+import 'package:long_course_project/services/auth_exceptions.dart';
+import 'package:long_course_project/services/auth_service.dart';
+import 'package:long_course_project/utils/show_error_dialog.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -59,19 +57,25 @@ class _RegisterViewState extends State<RegisterView> {
                 final email = _email.text;
                 final password = _password.text;
                 try {
-                  final userCredentials = await FirebaseAuth.instance
-                      .createUserWithEmailAndPassword(
+                  await AuthService.firebase().createUser(
                     email: email,
                     password: password,
                   );
-                  log(userCredentials.toString());
-                } on FirebaseAuthException catch (e) {
-                  if (e.code == 'weak-password') {
-                  } else if (e.code == 'email-already-in-use') {
-                    log(e.code);
-                  } else {
-                    log(e.code);
-                  }
+                  await AuthService.firebase().sendEmailVerification();
+                  if (!mounted) return;
+                  Navigator.of(context).pushNamed(verifyEmailRoute);
+                } on WeakPasswordAuthException catch (_) {
+                  await showErrorDialog(
+                    context,
+                    'Weak Password',
+                  );
+                } on InvalidEmailAuthException catch (_) {
+                  await showErrorDialog(
+                    context,
+                    'Invalid Email',
+                  );
+                } on GenericAuthException {
+                  await showErrorDialog(context, 'Failed To Register');
                 }
               },
               child: const Text('Register')),
